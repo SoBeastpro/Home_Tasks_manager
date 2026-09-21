@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "title": "Помыть посуду",
+    "user_id": 1,
+    "category_id": 1,
+    "priority": 3,
+    "due_date": "2026-09-18",
+    "status": "Запланировано"
+  },
+  {
+    "id": 2,
+    "title": "Купить продукты на неделю",
+    "user_id": 2,
+    "category_id": 3,
+    "priority": 3,
+    "due_date": "2026-09-21",
+    "status": "В работе"
+  },
+  {
+    "id": 3,
+    "title": "Пропылесосить ковер",
+    "user_id": 1,
+    "category_id": 2,
+    "priority": 2,
+    "due_date": "2026-09-23",
+    "status": "Запланировано"
+  },
+  {
+    "id": 4,
+    "title": "Разморозить холодильник",
+    "user_id": 3,
+    "category_id": 4,
+    "priority": 1,
+    "due_date": "2026-09-30",
+    "status": "Запланировано"
+  },
+  {
+    "id": 5,
+    "title": "Вынести мусор",
+    "user_id": 3,
+    "category_id": 2,
+    "priority": 2,
+    "due_date": "2026-09-20",
+    "status": "Выполнено"
+  },
+  {
+    "id": 6,
+    "title": "Починить кран на кухне",
+    "user_id": 2,
+    "category_id": 4,
+    "priority": 3,
+    "due_date": "2026-10-05",
+    "status": "Запланировано"
+  }
+]
