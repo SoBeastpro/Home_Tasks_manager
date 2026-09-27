@@ -1,14 +1,17 @@
 [
   {
     "id": 1,
-    "name": "Алексей"
+    "name": "Алексей",
+    "email": "alexey@home.local"
   },
   {
     "id": 2,
-    "name": "Мария"
+    "name": "Мария",
+    "email": "maria@home.local"
   },
   {
     "id": 3,
-    "name": "Иван"
+    "name": "Иван",
+    "email": "ivan@home.local"
   }
 ]

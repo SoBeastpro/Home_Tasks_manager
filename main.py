@@ -1,21 +1,21 @@
 """Сервис учета домашних дел — точка запуска приложения.
 
-Модуль содержит функции вывода данных, обработчики пунктов меню
-и основной цикл взаимодействия с пользователем. Данные о делах,
-пользователях и категориях загружаются из JSON-файлов каталога data
-при запуске и сохраняются после каждого изменения.
+Модуль организует меню и пользовательские сценарии. Данные предметной
+области передаются как коллекции объектов User, Category и Chore.
+Создание и поиск объектов выполняются функциями пакета models,
+а не непосредственно в main.py.
 """
 
 from datetime import date
 
-from categories import (
+from models import Category, Chore, User
+from models.categories import (
     add_category,
     count_chores_by_category,
-    get_category,
-    get_category_name,
+    find_category_by_id,
     sort_categories,
 )
-from chores import (
+from models.chores import (
     add_chore,
     complete_chore,
     count_chores_by_status,
@@ -25,16 +25,18 @@ from chores import (
     find_chore,
     get_chore_status,
     get_chores_for_date,
-    get_days_left,
-    get_deadline_message,
     get_overdue_chores,
-    get_priority_label,
-    is_chore_done,
     search_chores,
     set_chore_status,
     sort_chores,
 )
-from statuses import STATUSES, status_by_number
+from models.statuses import STATUS_CLASSES, status_by_number
+from models.users import (
+    add_user,
+    find_user_by_id,
+    get_user_workload,
+    sort_users,
+)
 from storage import (
     StorageError,
     load_categories,
@@ -44,13 +46,6 @@ from storage import (
     save_chores,
     save_users,
 )
-from users import (
-    add_user,
-    get_user,
-    get_user_name,
-    get_user_workload,
-    sort_users,
-)
 from utils import (
     enable_utf8_output,
     format_date,
@@ -58,10 +53,6 @@ from utils import (
     input_int,
     input_text,
 )
-
-Chores = list[dict]
-Users = dict[int, dict]
-Categories = dict[int, dict]
 
 MENU = """
 === Сервис учета домашних дел ===
@@ -91,198 +82,203 @@ TABLE_HEADER = (
     f"{'Исполнитель':<13}{'Статус':<15}{'Срок':<12}Приоритет"
 )
 
-# Пункты меню, после которых данные нужно записать в файлы.
 DATA_CHANGING_ACTIONS = frozenset({7, 8, 9, 10, 13, 15})
 
 
-def format_chore_row(
-    chore: dict, users: Users, categories: Categories
-) -> str:
+def format_chore_row(chore: Chore) -> str:
     """Вернуть строку таблицы для одного дела."""
-    category_name = get_category_name(categories, chore["category_id"])
-    user_name = get_user_name(users, chore["user_id"])
     return (
-        f"{chore['id']:<4}"
-        f"{chore['title'][:26]:<28}"
-        f"{category_name[:12]:<14}"
-        f"{user_name[:11]:<13}"
-        f"{chore['status']:<15}"
-        f"{format_date(chore['due_date']):<12}"
-        f"{get_priority_label(chore['priority'])}"
+        f"{chore.id:<4}"
+        f"{chore.title[:26]:<28}"
+        f"{chore.category.name[:12]:<14}"
+        f"{chore.user.name[:11]:<13}"
+        f"{str(chore.status):<15}"
+        f"{format_date(chore.due_date):<12}"
+        f"{chore.priority_label}"
     )
 
 
-def show_chores(
-    chores: Chores,
-    users: Users,
-    categories: Categories,
+def show_chores_table(
+    chores: list[Chore],
     title: str = "Список дел",
 ) -> None:
-    """Вывести дела в виде таблицы, упорядочив их по сроку выполнения."""
+    """Вывести дела в виде таблицы, упорядочив их по сроку."""
     print(f"\n{title} ({len(chores)}):")
     if not chores:
         print("Дел не найдено.")
         return
     print(TABLE_HEADER)
     for chore in sort_chores(chores):
-        print(format_chore_row(chore, users, categories))
+        print(format_chore_row(chore))
 
 
-def show_chore_card(
-    chore: dict, users: Users, categories: Categories
-) -> None:
+def show_chore_card(chore: Chore) -> None:
     """Вывести подробную карточку дела.
 
     Карточка повторяет начальный сценарий ПР1: статус, срок и подсказка
-    формируются функциями, перенесенными из первой практической работы.
+    формируются функциями, перенесёнными из первой практической работы.
     """
-    done = is_chore_done(chore)
-    days_left = get_days_left(chore["due_date"], date.today())
-    print(f"\nДело №{chore['id']}: {chore['title']}")
-    print(f"Категория: {get_category_name(categories, chore['category_id'])}")
-    print(f"Исполнитель: {get_user_name(users, chore['user_id'])}")
-    print(f"Приоритет: {get_priority_label(chore['priority'])}")
-    print(f"Срок: {format_date(chore['due_date'])}")
+    days_left = chore.days_left(date.today())
+    print(f"\n{chore}")
+    print(f"Категория: {chore.category.name}")
+    print(f"Исполнитель: {chore.user.name}")
+    print(f"Приоритет: {chore.priority_label}")
+    print(f"Срок: {format_date(chore.due_date)}")
     print(f"Осталось дней: {days_left}")
-    print(f"Статус: {chore['status']}")
-    print(f"Отметка о выполнении: {get_chore_status(done)}")
-    print(get_deadline_message(days_left, done))
-    if days_left <= 2 and not done:
+    print(f"Статус: {chore.status}")
+    print(f"Отметка о выполнении: {get_chore_status(chore.is_done())}")
+    print(chore.deadline_message(date.today()))
+    if days_left <= 2 and not chore.is_done():
         print("Внимание: дело требует срочного выполнения!")
 
 
-def choose_user(users: Users) -> int:
-    """Показать пользователей и запросить номер исполнителя."""
+def choose_user(users: list[User]) -> User:
+    """Показать пользователей и вернуть выбранный объект User."""
     if not users:
         raise ValueError("Сначала добавьте хотя бы одного пользователя")
     print("Пользователи:")
     for user in sort_users(users):
-        print(f"  {user['id']}. {user['name']}")
-    user_id = input_int("Номер пользователя: ", 1)
-    get_user(users, user_id)
-    return user_id
+        print(f"  {user.id}. {user.name}")
+    return find_user_by_id(users, input_int("Номер пользователя: ", 1))
 
 
-def choose_category(categories: Categories) -> int:
-    """Показать категории и запросить номер категории."""
+def choose_category(categories: list[Category]) -> Category:
+    """Показать категории и вернуть выбранный объект Category."""
     if not categories:
         raise ValueError("Сначала добавьте хотя бы одну категорию")
     print("Категории:")
     for category in sort_categories(categories):
-        print(f"  {category['id']}. {category['name']}")
+        print(f"  {category.id}. {category.name}")
     category_id = input_int("Номер категории: ", 1)
-    get_category(categories, category_id)
-    return category_id
+    return find_category_by_id(categories, category_id)
 
 
 def handle_show_chores(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести все дела."""
-    show_chores(chores, users, categories, "Все дела")
+    show_chores_table(chores, "Все дела")
 
 
 def handle_search_chores(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Найти дела по части названия."""
     query = input_text("Часть названия дела: ")
     found = search_chores(chores, query)
-    show_chores(found, users, categories, f"Результаты поиска «{query}»")
+    show_chores_table(found, f"Результаты поиска «{query}»")
 
 
 def handle_user_chores(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести дела выбранного пользователя."""
-    user_id = choose_user(users)
-    found = filter_chores_by_user(chores, user_id)
-    title = f"Дела пользователя {get_user_name(users, user_id)}"
-    show_chores(found, users, categories, title)
+    user = choose_user(users)
+    found = filter_chores_by_user(chores, user.id)
+    show_chores_table(found, f"Дела пользователя {user.name}")
 
 
 def handle_category_chores(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести дела выбранной категории."""
-    category_id = choose_category(categories)
-    found = filter_chores_by_category(chores, category_id)
-    title = f"Дела категории {get_category_name(categories, category_id)}"
-    show_chores(found, users, categories, title)
+    category = choose_category(categories)
+    found = filter_chores_by_category(chores, category.id)
+    show_chores_table(found, f"Дела категории {category.name}")
 
 
 def handle_chores_for_date(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести дела, запланированные на указанную дату."""
     day = input_date("Дата (ДД.ММ.ГГГГ): ")
     found = get_chores_for_date(chores, day)
-    show_chores(found, users, categories, f"Дела на {format_date(day)}")
+    show_chores_table(found, f"Дела на {format_date(day)}")
 
 
 def handle_chore_card(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести карточку выбранного дела."""
-    chore = find_chore(chores, input_int("Номер дела: ", 1))
-    show_chore_card(chore, users, categories)
+    show_chore_card(find_chore(chores, input_int("Номер дела: ", 1)))
 
 
 def handle_add_chore(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
-    """Добавить новое дело."""
+    """Добавить новое дело, связав его с User и Category."""
     title = input_text("Название дела: ")
-    user_id = choose_user(users)
-    category_id = choose_category(categories)
+    user = choose_user(users)
+    category = choose_category(categories)
     due_date = input_date("Срок выполнения (ДД.ММ.ГГГГ): ")
     priority = input_int("Приоритет (1 — низкий, 3 — высокий): ", 1, 3)
-    chore = add_chore(
-        chores, title, user_id, category_id, due_date, priority
-    )
-    print(f"Добавлено дело №{chore['id']}: {chore['title']}")
+    chore = add_chore(chores, title, user, category, due_date, priority)
+    print(f"Добавлено дело №{chore.id}: {chore.title}")
 
 
 def handle_change_status(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Изменить статус выбранного дела."""
-    chore_id = input_int("Номер дела: ", 1)
-    chore = find_chore(chores, chore_id)
-    print(f"Текущий статус: {chore['status']}")
-    for number, status in enumerate(STATUSES, start=1):
-        print(f"  {number}. {status}")
-    choice = input_int("Новый статус: ", 1, len(STATUSES))
-    updated = set_chore_status(chores, chore_id, status_by_number(choice))
-    print(f"Статус дела №{updated['id']}: {updated['status']}")
+    chore = find_chore(chores, input_int("Номер дела: ", 1))
+    print(f"Текущий статус: {chore.status}")
+    for number, status_class in enumerate(STATUS_CLASSES, start=1):
+        print(f"  {number}. {status_class.name}")
+    choice = input_int("Новый статус: ", 1, len(STATUS_CLASSES))
+    updated = set_chore_status(chores, chore.id, status_by_number(choice))
+    print(f"Статус дела №{updated.id}: {updated.status}")
 
 
 def handle_complete_chore(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Отметить дело выполненным."""
     chore = complete_chore(chores, input_int("Номер дела: ", 1))
-    print(f"Дело «{chore['title']}» отмечено как выполненное.")
+    print(f"Дело «{chore.title}» отмечено как выполненное.")
 
 
 def handle_delete_chore(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Удалить дело."""
     chore = delete_chore(chores, input_int("Номер дела: ", 1))
-    print(f"Дело «{chore['title']}» удалено.")
+    print(f"Дело «{chore.title}» удалено.")
 
 
 def handle_overdue_chores(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести просроченные дела."""
     overdue = get_overdue_chores(chores, date.today())
-    show_chores(overdue, users, categories, "Просроченные дела")
+    show_chores_table(overdue, "Просроченные дела")
 
 
 def handle_show_users(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести пользователей и их текущую нагрузку."""
     if not users:
@@ -291,20 +287,26 @@ def handle_show_users(
     workload = get_user_workload(users, chores)
     print(f"\nПользователи ({len(users)}):")
     for user in sort_users(users):
-        count = workload.get(user["name"], 0)
-        print(f"  {user['id']}. {user['name']} — невыполненных дел: {count}")
+        count = workload.get(user.name, 0)
+        print(f"  {user.id}. {user.name} — невыполненных дел: {count}")
 
 
 def handle_add_user(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Добавить пользователя."""
-    user = add_user(users, input_text("Имя пользователя: "))
-    print(f"Добавлен пользователь №{user['id']}: {user['name']}")
+    name = input_text("Имя пользователя: ")
+    email = input("Электронная почта (необязательно): ").strip()
+    user = add_user(users, name, email)
+    print(f"Добавлен {user}")
 
 
 def handle_show_categories(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести категории и количество дел в каждой из них."""
     if not categories:
@@ -313,20 +315,24 @@ def handle_show_categories(
     counters = count_chores_by_category(categories, chores)
     print(f"\nКатегории ({len(categories)}):")
     for category in sort_categories(categories):
-        count = counters.get(category["name"], 0)
-        print(f"  {category['id']}. {category['name']} — дел: {count}")
+        count = counters.get(category.name, 0)
+        print(f"  {category.id}. {category.name} — дел: {count}")
 
 
 def handle_add_category(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Добавить категорию."""
     category = add_category(categories, input_text("Название категории: "))
-    print(f"Добавлена категория №{category['id']}: {category['name']}")
+    print(f"Добавлена {category}")
 
 
 def handle_statistics(
-    chores: Chores, users: Users, categories: Categories
+    chores: list[Chore],
+    users: list[User],
+    categories: list[Category],
 ) -> None:
     """Вывести статистику по делам, категориям и исполнителям."""
     print(f"\nВсего дел: {len(chores)}")
@@ -363,7 +369,11 @@ ACTIONS = {
 }
 
 
-def save_all(users: Users, categories: Categories, chores: Chores) -> None:
+def save_all(
+    users: list[User],
+    categories: list[Category],
+    chores: list[Chore],
+) -> None:
     """Сохранить все данные проекта в JSON-файлы."""
     save_users(users)
     save_categories(categories)
@@ -371,12 +381,12 @@ def save_all(users: Users, categories: Categories, chores: Chores) -> None:
 
 
 def main() -> None:
-    """Точка запуска приложения: цикл меню и вызов функций проекта."""
+    """Точка запуска: загрузка объектов, цикл меню и сохранение."""
     enable_utf8_output()
     try:
         users = load_users()
         categories = load_categories()
-        chores = load_chores()
+        chores = load_chores(users, categories)
     except StorageError as error:
         print(f"Не удалось загрузить данные: {error}")
         return

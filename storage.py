@@ -1,13 +1,17 @@
 """Сохранение и загрузка данных проекта в JSON-файлах.
 
-Чтение и запись выполняются через контекстный менеджер with, поэтому
-файл закрывается даже при возникновении ошибки. Отсутствие файла
-считается пустым набором данных, а поврежденный JSON приводит
-к исключению StorageError.
+JSON хранит обычные данные. При загрузке они преобразуются в объекты
+User, Category и Chore; при сохранении объекты снова превращаются
+в словари. Связи дела с пользователем и категорией в файле хранятся
+как идентификаторы user_id и category_id.
 """
 
 import json
 import os
+
+from models import Category, Chore, User
+from models.categories import find_category_by_id
+from models.users import find_user_by_id
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
@@ -60,47 +64,80 @@ def save_items(filename: str, items: list[dict]) -> None:
         ) from error
 
 
-def items_to_dict(items: list[dict]) -> dict[int, dict]:
-    """Преобразовать список записей в словарь по идентификатору.
-
-    Вызывает StorageError, если в записи нет корректного поля id.
-    """
-    result: dict[int, dict] = {}
-    for item in items:
+def load_users(filename: str = USERS_FILE) -> list[User]:
+    """Загрузить пользователей и преобразовать их в объекты User."""
+    users: list[User] = []
+    for item in load_items(filename):
         try:
-            item_id = int(item["id"])
+            users.append(User.from_data(item))
         except (KeyError, TypeError, ValueError) as error:
-            raise StorageError(f"Некорректная запись: {item}") from error
-        item["id"] = item_id
-        result[item_id] = item
-    return result
+            raise StorageError(
+                f"Некорректная запись пользователя: {item}"
+            ) from error
+    return users
 
 
-def load_users() -> dict[int, dict]:
-    """Загрузить пользователей из файла data/users.json."""
-    return items_to_dict(load_items(USERS_FILE))
+def save_users(users: list[User], filename: str = USERS_FILE) -> None:
+    """Сохранить объекты User в JSON-файл."""
+    save_items(filename, [user.to_data() for user in users])
 
 
-def save_users(users: dict[int, dict]) -> None:
-    """Сохранить пользователей в файл data/users.json."""
-    save_items(USERS_FILE, list(users.values()))
+def load_categories(filename: str = CATEGORIES_FILE) -> list[Category]:
+    """Загрузить категории и преобразовать их в объекты Category."""
+    categories: list[Category] = []
+    for item in load_items(filename):
+        try:
+            categories.append(Category.from_data(item))
+        except (KeyError, TypeError, ValueError) as error:
+            raise StorageError(
+                f"Некорректная запись категории: {item}"
+            ) from error
+    return categories
 
 
-def load_categories() -> dict[int, dict]:
-    """Загрузить категории из файла data/categories.json."""
-    return items_to_dict(load_items(CATEGORIES_FILE))
+def save_categories(
+    categories: list[Category],
+    filename: str = CATEGORIES_FILE,
+) -> None:
+    """Сохранить объекты Category в JSON-файл."""
+    save_items(filename, [category.to_data() for category in categories])
 
 
-def save_categories(categories: dict[int, dict]) -> None:
-    """Сохранить категории в файл data/categories.json."""
-    save_items(CATEGORIES_FILE, list(categories.values()))
+def load_chores(
+    users: list[User],
+    categories: list[Category],
+    filename: str = CHORES_FILE,
+) -> list[Chore]:
+    """Загрузить дела и восстановить связи с User и Category.
+
+    Если пользователь или категория не найдены, дело не создаётся
+    как корректный объект: возбуждается StorageError.
+    """
+    chores: list[Chore] = []
+    for item in load_items(filename):
+        try:
+            user = find_user_by_id(users, int(item["user_id"]))
+            category = find_category_by_id(
+                categories,
+                int(item["category_id"]),
+            )
+            chore = Chore(
+                chore_id=int(item["id"]),
+                title=str(item["title"]),
+                user=user,
+                category=category,
+                due_date=item["due_date"],
+                priority=int(item["priority"]),
+                status=str(item["status"]),
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise StorageError(
+                f"Некорректная запись дела: {item}"
+            ) from error
+        chores.append(chore)
+    return chores
 
 
-def load_chores() -> list[dict]:
-    """Загрузить домашние дела из файла data/chores.json."""
-    return load_items(CHORES_FILE)
-
-
-def save_chores(chores: list[dict]) -> None:
-    """Сохранить домашние дела в файл data/chores.json."""
-    save_items(CHORES_FILE, chores)
+def save_chores(chores: list[Chore], filename: str = CHORES_FILE) -> None:
+    """Сохранить объекты Chore: вместо User и Category пишутся id."""
+    save_items(filename, [chore.to_data() for chore in chores])
