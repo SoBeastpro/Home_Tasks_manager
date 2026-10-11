@@ -64,10 +64,21 @@ def find_category_by_id(
 
     Вызывает KeyError, если категория не найдена.
     """
+    category = find_category_or_none(categories, category_id)
+    if category is None:
+        raise KeyError(f"Категория с номером {category_id} не найдена")
+    return category
+
+
+def find_category_or_none(
+    categories: list[Category],
+    category_id: int,
+) -> Category | None:
+    """Найти категорию по идентификатору или вернуть None."""
     for category in categories:
         if category.id == category_id:
             return category
-    raise KeyError(f"Категория с номером {category_id} не найдена")
+    return None
 
 
 def get_category(

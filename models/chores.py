@@ -171,10 +171,18 @@ def find_chore(chores: list[Chore], chore_id: int) -> Chore:
 
     Вызывает KeyError, если дело не найдено.
     """
+    chore = find_chore_by_id(chores, chore_id)
+    if chore is None:
+        raise KeyError(f"Дело с номером {chore_id} не найдено")
+    return chore
+
+
+def find_chore_by_id(chores: list[Chore], chore_id: int) -> Chore | None:
+    """Найти дело по идентификатору или вернуть None."""
     for chore in chores:
         if chore.id == chore_id:
             return chore
-    raise KeyError(f"Дело с номером {chore_id} не найдено")
+    return None
 
 
 def search_chores(chores: list[Chore], query: str) -> list[Chore]:
