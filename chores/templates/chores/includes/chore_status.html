@@ -1,0 +1,13 @@
+{% if chore.is_done %}
+  <span class="badge bg-success chore-status chore-status-done">
+    Выполнено
+  </span>
+{% elif chore.status.name == "В работе" %}
+  <span class="badge bg-warning text-dark chore-status chore-status-progress">
+    В работе
+  </span>
+{% else %}
+  <span class="badge bg-secondary chore-status chore-status-planned">
+    Запланировано
+  </span>
+{% endif %}

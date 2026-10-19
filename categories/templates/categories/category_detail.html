@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if category %}
+Категория: {{ category.name }} – Home Tasks
+{% else %}
+Категория не найдена – Home Tasks
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if category %}
+  <h1>{{ category.name|default:"Без названия" }}</h1>
+  <p class="lead">Категория №{{ category.id }}</p>
+  <p>
+    Дел в категории: {{ chores|length }}
+  </p>
+  {% for chore in chores %}
+    {% include "chores/includes/chore_card.html" %}
+  {% empty %}
+    <p>В этой категории пока нет дел.</p>
+  {% endfor %}
+{% else %}
+  <h1 class="text-danger">Категория не найдена</h1>
+  <p>
+    Категория с указанным идентификатором отсутствует.
+  </p>
+{% endif %}
+<a
+  href="{% url 'categories:list' %}"
+  class="btn btn-outline-success mt-3"
+>
+  ← к списку категорий
+</a>
+{% endblock %}

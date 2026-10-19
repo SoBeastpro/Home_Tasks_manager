@@ -11,14 +11,17 @@
 категориям, менять статус выполнения, находить просроченные дела и
 оценивать нагрузку участников.
 
-Консольная версия (ПР3) дополнена веб-интерфейсом на Django (ПР5).
+Консольная версия (ПР3) дополнена веб-интерфейсом на Django (ПР5)
+и переведена на шаблоны Django (ПР6).
 
 ## Используемые технологии
 
 - Python 3;
 - Django 5.2 — веб-фреймворк;
-- HTML — разметка веб-страниц;
-- CSS и Bootstrap 5.3 — оформление страниц;
+- Django Template Language (DTL);
+- HTML5, CSS3 и JavaScript;
+- Bootstrap 5.3 — базовая вёрстка;
+- JSON для хранения данных;
 - pytest — автоматизированные тесты;
 - flake8 — проверка качества кода.
 
@@ -167,13 +170,49 @@ Chore
 страница возвращает код статуса 404. Несуществующий адрес
 обрабатывает `handler404` → `page_not_found()`.
 
-Маршруты имеют имена (`index`, `chores`, `chore_detail`,
-`categories`, `category_detail`): в следующих работах ссылки
-будут строиться по имени, а не по жёсткому адресу.
+Страницы собираются шаблонами Django. Представления передают данные
+через контекст и вызывают `render()`. Функция `page()` больше
+не используется.
+
+Ссылки формируются через `{% url %}` и пространства имён:
+`homepage:index`, `chores:list`, `chores:detail`,
+`categories:list`, `categories:detail`.
+
+## Django Template Language
+
+Общий каркас страниц — `templates/base.html`. Дочерние шаблоны
+подключают его через `{% extends "base.html" %}` и заполняют блоки
+`title` и `content`. Навигация вынесена в
+`templates/includes/navigation.html`.
+
+Повторяющиеся фрагменты:
+
+- `chores/includes/chore_card.html` — карточка дела;
+- `chores/includes/chore_status.html` — статус дела;
+- `categories/includes/category_card.html` — карточка категории.
+
+Списки строятся циклом `{% for %}` с веткой `{% empty %}`.
+Отсутствие объекта и статус дела отображаются через `{% if %}`.
+
+Фильтры шаблонов:
+
+- `{{ chores|length }}` — количество дел;
+- `{{ chore.title|default:"Без названия" }}` — значение по умолчанию.
+
+## Статические файлы
+
+Статика лежит в `homepage/static/homepage/`:
+
+- `css/style.css` — собственные стили;
+- `js/main.js` — текущий год в подвале;
+- `img/logo.png` — логотип.
+
+В шаблонах используется `{% load static %}` и `{% static %}`.
+Bootstrap сохранён для базовой вёрстки.
 
 ## Основные операции
 
-### Используется в веб-интерфейсе (ПР5)
+### Используется в веб-интерфейсе (ПР5–ПР6)
 
 - просмотр списка дел;
 - просмотр карточки дела (исполнитель, категория, срок, статус);
@@ -204,6 +243,11 @@ Chore
 ├── main.py
 ├── storage.py
 ├── utils.py
+├── templates/
+│   ├── base.html
+│   ├── 404.html
+│   └── includes/
+│       └── navigation.html
 ├── home_tasks/
 │   ├── __init__.py
 │   ├── settings.py
@@ -211,30 +255,16 @@ Chore
 │   ├── asgi.py
 │   └── wsgi.py
 ├── homepage/
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── migrations/
-│   ├── models.py
-│   ├── tests.py
+│   ├── static/homepage/
+│   ├── templates/homepage/index.html
 │   ├── urls.py
 │   └── views.py
 ├── chores/
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── migrations/
-│   ├── models.py
-│   ├── tests.py
+│   ├── templates/chores/
 │   ├── urls.py
 │   └── views.py
 ├── categories/
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── migrations/
-│   ├── models.py
-│   ├── tests.py
+│   ├── templates/categories/
 │   ├── urls.py
 │   └── views.py
 ├── models/
@@ -279,37 +309,35 @@ Chore
 
 Пакет настроек Django-проекта:
 
-- `settings.py` — настройки проекта (`LANGUAGE_CODE`, `TIME_ZONE`);
+- `settings.py` — настройки проекта, `TEMPLATES['DIRS']`;
 - `urls.py` — маршрутизация верхнего уровня и `handler404`;
 - `asgi.py`, `wsgi.py` — точки взаимодействия с сервером.
+
+### `templates/`
+
+Общие шаблоны сайта: `base.html`, `404.html` и навигация.
 
 ### `homepage/`
 
 Django-приложение главной страницы:
 
-- `views.py` — `page()` (общий HTML-каркас), `index()`,
-  `page_not_found()`;
-- `urls.py` — маршрут `/`.
-
-Функция `page()` задаёт кодировку, заголовок вкладки, Bootstrap 5.3
-и навбар. Остальные приложения импортируют её.
+- `views.py` — `index()` и `page_not_found()` через `render()`;
+- `templates/homepage/index.html` — главная страница;
+- `static/homepage/` — CSS, JavaScript и логотип.
 
 ### `chores/`
 
 Django-приложение дел:
 
 - `views.py` — `chore_list()` и `chore_detail()`;
-- `urls.py` — маршруты `/chores/` и `/chores/<int:chore_id>/`;
-- `models.py` — модели Django пока не создаются.
+- `templates/chores/` — список, карточка и включаемые фрагменты.
 
 ### `categories/`
 
 Django-приложение категорий:
 
 - `views.py` — `category_list()` и `category_detail()`;
-- `urls.py` — маршруты `/categories/` и
-  `/categories/<int:category_id>/`;
-- `models.py` — модели Django пока не создаются.
+- `templates/categories/` — список, карточка и include.
 
 ### `tests/`
 
@@ -408,8 +436,8 @@ flake8 . --extend-exclude=venv
 
 ## Git
 
-Исходный код хранится в Git-репозитории. Коммиты ПР5 начинаются
-с метки `ПР5:`.
+Исходный код хранится в Git-репозитории. Коммиты ПР6 начинаются
+с метки `ПР6:`.
 
 ```
 git status
@@ -417,23 +445,20 @@ git status
 
 ## Текущее состояние и план развития
 
-Реализовано (ПР5):
+Реализовано (ПР6):
 
-- Django-проект `home_tasks` и приложения `homepage`, `chores`,
-  `categories`;
-- маршрутизация URL двух уровней и имена маршрутов;
-- view-функции и HTML-страницы;
-- отображение дел и категорий из JSON;
-- поиск по id: `find_chore_by_id()` и `find_category_or_none()`
-  возвращают `None`, view отдаёт код 404;
-- навигация между страницами;
-- оформление Bootstrap 5.3;
-- обработчик `handler404`.
+- Django Template Language: `base.html`, `{% extends %}`, `{% block %}`;
+- включаемые шаблоны `{% include %}` для навигации, карточек и статуса;
+- передача данных через контекст и `render()`;
+- циклы, условия и обработка пустых коллекций;
+- именованные URL и пространства имён;
+- фильтры `length` и `default`;
+- собственные CSS, JavaScript и логотип;
+- данные по-прежнему из JSON и классов ПР3.
 
 Планируется:
 
 - перенос сущностей в Django ORM и подключение базы данных;
-- переход на шаблоны (`templates/`) и отказ от функции `page()`;
 - формы создания и редактирования дел;
 - использование отложенной логики ПР3 (поиск, смена статуса);
 - регистрация пользователей;

@@ -1,0 +1,25 @@
+<article class="card chore-card mb-3">
+  <div class="card-body">
+    <h2 class="card-title h5">
+      {{ chore.title|default:"Без названия" }}
+    </h2>
+    <p class="card-text">
+      Исполнитель: {{ chore.user.name }}
+    </p>
+    <p class="card-text">
+      Категория: {{ chore.category.name }}
+    </p>
+    <p class="card-text">
+      Срок: {{ chore.due_date }}
+    </p>
+    <p class="card-text">
+      {% include "chores/includes/chore_status.html" %}
+    </p>
+    <a
+      href="{% url 'chores:detail' chore.id %}"
+      class="btn btn-success"
+    >
+      Подробнее
+    </a>
+  </div>
+</article>

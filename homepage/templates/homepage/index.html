@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}
+Главная – Home Tasks
+{% endblock %}
+
+{% block content %}
+<h1 class="display-4">Home Tasks</h1>
+<p class="lead">
+  Сервис учета домашних дел: просмотр задач семьи,
+  исполнителей, категорий и сроков выполнения.
+</p>
+<p>Основные разделы:</p>
+<a href="{% url 'chores:list' %}" class="btn btn-success me-2">
+  Дела
+</a>
+<a href="{% url 'categories:list' %}" class="btn btn-outline-success">
+  Категории
+</a>
+{% endblock %}

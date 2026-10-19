@@ -1,0 +1,16 @@
+<article class="card category-card mb-3">
+  <div class="card-body">
+    <h2 class="card-title h5">
+      {{ category.name|default:"Без названия" }}
+    </h2>
+    <p class="card-text">
+      Дел: {{ chore_count }}
+    </p>
+    <a
+      href="{% url 'categories:detail' category.id %}"
+      class="btn btn-outline-success"
+    >
+      Подробнее
+    </a>
+  </div>
+</article>

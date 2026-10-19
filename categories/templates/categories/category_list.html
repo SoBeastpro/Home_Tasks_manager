@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}
+Категории – Home Tasks
+{% endblock %}
+
+{% block content %}
+<h1>Категории</h1>
+<p>
+  Всего категорий: {{ category_items|length }}
+</p>
+{% for item in category_items %}
+  {% include "categories/includes/category_card.html" with category=item.category chore_count=item.chore_count %}
+{% empty %}
+  <p>Категории не найдены.</p>
+{% endfor %}
+{% endblock %}

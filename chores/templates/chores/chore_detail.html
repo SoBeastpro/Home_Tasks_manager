@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if chore %}
+{{ chore.title }} – Home Tasks
+{% else %}
+Дело не найдено – Home Tasks
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if chore %}
+  <div class="card chore-card">
+    <div class="card-body">
+      <h1 class="card-title h3">
+        {{ chore.title|default:"Без названия" }}
+      </h1>
+      <p class="card-text">
+        <strong>Исполнитель:</strong> {{ chore.user.name }}
+      </p>
+      <p class="card-text">
+        <strong>Категория:</strong>
+        <a href="{% url 'categories:detail' chore.category.id %}">
+          {{ chore.category.name }}
+        </a>
+      </p>
+      <p class="card-text">
+        <strong>Срок:</strong> {{ chore.due_date }}
+      </p>
+      <p class="card-text">
+        <strong>Статус:</strong>
+        {% include "chores/includes/chore_status.html" %}
+      </p>
+      <p class="card-text">
+        <strong>Приоритет:</strong> {{ chore.priority_label }}
+      </p>
+      <p class="card-text">
+        <strong>Подсказка:</strong> {{ deadline_hint }}
+      </p>
+    </div>
+  </div>
+{% else %}
+  <h1 class="text-danger">Дело не найдено</h1>
+  <p>
+    Дело с указанным идентификатором отсутствует.
+  </p>
+{% endif %}
+<a
+  href="{% url 'chores:list' %}"
+  class="btn btn-outline-success mt-3"
+>
+  ← к списку дел
+</a>
+{% endblock %}

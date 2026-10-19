@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}
+Дела – Home Tasks
+{% endblock %}
+
+{% block content %}
+<h1>Дела</h1>
+<p>
+  Всего дел: {{ chores|length }}
+</p>
+{% for chore in chores %}
+  {% include "chores/includes/chore_card.html" %}
+{% empty %}
+  <p>Дела не найдены.</p>
+{% endfor %}
+{% endblock %}

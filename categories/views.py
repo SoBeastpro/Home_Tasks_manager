@@ -1,14 +1,11 @@
 """Представления списка и карточки категорий."""
 
-from html import escape
-
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 
-from homepage.views import page
 from models.categories import find_category_or_none
 from models.chores import filter_chores_by_category
 from storage import load_categories, load_chores, load_users
-from utils import format_date
 
 
 def _load_data():
@@ -22,30 +19,18 @@ def _load_data():
 def category_list(request: HttpRequest) -> HttpResponse:
     """Показать список категорий из JSON."""
     categories, chores = _load_data()
-    if not categories:
-        content = "<p>Категории ещё не добавлены.</p>"
-    else:
-        rows = []
-        for category in categories:
-            count = len(
-                filter_chores_by_category(chores, category.id)
-            )
-            name = escape(category.name)
-            rows.append(
-                "<tr>"
-                f"<td>{category.id}</td>"
-                f'<td><a href="/categories/{category.id}/">{name}</a></td>'
-                f"<td>{count}</td>"
-                "</tr>"
-            )
-        content = (
-            '<table class="table table-striped table-hover">'
-            "<thead><tr>"
-            "<th>№</th><th>Название</th><th>Дел</th>"
-            "</tr></thead>"
-            f"<tbody>{''.join(rows)}</tbody></table>"
+    category_items = []
+    for category in categories:
+        category_items.append(
+            {
+                "category": category,
+                "chore_count": len(
+                    filter_chores_by_category(chores, category.id)
+                ),
+            }
         )
-    return HttpResponse(page("Категории", content, active="categories"))
+    context = {"category_items": category_items}
+    return render(request, "categories/category_list.html", context)
 
 
 def category_detail(
@@ -55,45 +40,16 @@ def category_detail(
     """Показать категорию и её дела или страницу 404."""
     categories, chores = _load_data()
     category = find_category_or_none(categories, category_id)
-    if category is None:
-        content = (
-            f"<p>Категория с номером {category_id} не найдена.</p>"
-            '<p><a class="btn btn-success" href="/categories/">'
-            "К списку категорий</a></p>"
-        )
-        return HttpResponse(
-            page("Категория не найдена", content, active="categories"),
-            status=404,
-        )
-    related = filter_chores_by_category(chores, category.id)
-    if not related:
-        chores_html = "<p>В этой категории пока нет дел.</p>"
-    else:
-        items = []
-        for chore in related:
-            title = escape(chore.title)
-            user_name = escape(chore.user.name)
-            status_name = escape(str(chore.status))
-            due = format_date(chore.due_date)
-            items.append(
-                "<li class=\"list-group-item\">"
-                f'<a href="/chores/{chore.id}/">{title}</a>'
-                f" — {user_name}, до {due}, {status_name}"
-                "</li>"
-            )
-        chores_html = (
-            '<ul class="list-group">'
-            f"{''.join(items)}"
-            "</ul>"
-        )
-    content = f"""
-    <p class="lead">Категория №{category.id}</p>
-    {chores_html}
-    <p class="mt-3">
-      <a class="btn btn-outline-success" href="/categories/">
-        К списку категорий
-      </a>
-    </p>
-    """
-    title = f"Категория: {category.name}"
-    return HttpResponse(page(title, content, active="categories"))
+    related = []
+    if category is not None:
+        related = filter_chores_by_category(chores, category.id)
+    context = {
+        "category": category,
+        "chores": related,
+    }
+    return render(
+        request,
+        "categories/category_detail.html",
+        context,
+        status=404 if category is None else 200,
+    )
