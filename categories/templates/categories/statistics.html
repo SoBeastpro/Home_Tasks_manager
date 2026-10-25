@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}
+Статистика – Home Tasks
+{% endblock %}
+
+{% block content %}
+<h1>Статистика дел</h1>
+<p class="lead">
+  Невыполненных дел: {{ open_count }}
+</p>
+
+<h2 class="h4 mt-4">По категориям</h2>
+{% for item in by_category %}
+  <article class="card category-card mb-2">
+    <div class="card-body">
+      <h3 class="h5 mb-1">{{ item.category_name }}</h3>
+      <p class="mb-0">Количество дел: {{ item.chores_count }}</p>
+    </div>
+  </article>
+{% empty %}
+  <p>Данные отсутствуют.</p>
+{% endfor %}
+
+<h2 class="h4 mt-4">По статусам</h2>
+{% for item in by_status %}
+  <article class="card category-card mb-2">
+    <div class="card-body">
+      <h3 class="h5 mb-1">{{ item.status }}</h3>
+      <p class="mb-0">Количество дел: {{ item.chores_count }}</p>
+    </div>
+  </article>
+{% empty %}
+  <p>Данные отсутствуют.</p>
+{% endfor %}
+
+<h2 class="h4 mt-4">Категории с несколькими делами</h2>
+{% for item in busy_categories %}
+  <article class="card category-card mb-2">
+    <div class="card-body">
+      <h3 class="h5 mb-1">{{ item.category_name }}</h3>
+      <p class="mb-0">Количество дел: {{ item.chores_count }}</p>
+    </div>
+  </article>
+{% empty %}
+  <p>Категорий с несколькими делами нет.</p>
+{% endfor %}
+{% endblock %}

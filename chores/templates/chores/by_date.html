@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}
+Дела по сроку – Home Tasks
+{% endblock %}
+
+{% block content %}
+<h1>Найти дела по сроку</h1>
+<form method="get" class="row gy-2 gx-2 align-items-end mb-4">
+  <div class="col-auto">
+    <label for="date" class="form-label">Дата:</label>
+    <input
+      class="form-control"
+      type="date"
+      id="date"
+      name="date"
+      value="{{ due_date }}"
+    >
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-success">Найти</button>
+  </div>
+</form>
+{% if due_date %}
+  <h2>Дата: {{ due_date }}</h2>
+  {% for chore in chores %}
+    {% include "chores/includes/chore_card.html" %}
+  {% empty %}
+    <p>На выбранную дату дел нет.</p>
+  {% endfor %}
+{% endif %}
+<a href="{% url 'chores:list' %}" class="btn btn-outline-success">
+  ← ко всем делам
+</a>
+{% endblock %}

@@ -7,10 +7,10 @@
 {% block content %}
 <h1>Категории</h1>
 <p>
-  Всего категорий: {{ category_items|length }}
+  Всего категорий: {{ categories|length }}
 </p>
-{% for item in category_items %}
-  {% include "categories/includes/category_card.html" with category=item.category chore_count=item.chore_count %}
+{% for category in categories %}
+  {% include "categories/includes/category_card.html" with category=category chore_count=category.chore_count %}
 {% empty %}
   <p>Категории не найдены.</p>
 {% endfor %}

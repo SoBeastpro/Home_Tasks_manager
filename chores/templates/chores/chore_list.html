@@ -9,6 +9,14 @@
 <p>
   Всего дел: {{ chores|length }}
 </p>
+<p>
+  <a href="{% url 'chores:open' %}" class="btn btn-outline-success me-2">
+    Невыполненные дела
+  </a>
+  <a href="{% url 'chores:by_date' %}" class="btn btn-outline-success">
+    Найти дела по сроку
+  </a>
+</p>
 {% for chore in chores %}
   {% include "chores/includes/chore_card.html" %}
 {% empty %}
