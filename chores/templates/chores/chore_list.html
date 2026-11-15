@@ -7,7 +7,7 @@
 {% block content %}
 <h1>Дела</h1>
 <p>
-  Всего дел: {{ chores|length }}
+  Всего дел: {{ page_obj.paginator.count }}
 </p>
 <p>
   <a href="{% url 'chores:open' %}" class="btn btn-outline-success me-2">
@@ -17,9 +17,98 @@
     Найти дела по сроку
   </a>
 </p>
+
+<form method="get" class="row gy-2 gx-2 align-items-end mb-4">
+  <div class="col-md-3">
+    <label for="q" class="form-label">Поиск</label>
+    <input
+      class="form-control"
+      type="search"
+      id="q"
+      name="q"
+      value="{{ query }}"
+      placeholder="Название или исполнитель"
+    >
+  </div>
+  <div class="col-md-2">
+    <label for="date" class="form-label">Срок</label>
+    <input
+      class="form-control"
+      type="date"
+      id="date"
+      name="date"
+      value="{{ due_date }}"
+    >
+  </div>
+  <div class="col-md-2">
+    <label for="category" class="form-label">Категория</label>
+    <select id="category" name="category" class="form-select">
+      <option value="">Все категории</option>
+      {% for category in categories %}
+        <option
+          value="{{ category.pk }}"
+          {% if selected_category == category.pk|stringformat:"s" %}
+            selected
+          {% endif %}
+        >
+          {{ category.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label for="user" class="form-label">Исполнитель</label>
+    <select id="user" name="user" class="form-select">
+      <option value="">Все исполнители</option>
+      {% for user in users %}
+        <option
+          value="{{ user.pk }}"
+          {% if selected_user == user.pk|stringformat:"s" %}
+            selected
+          {% endif %}
+        >
+          {{ user.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label for="sort" class="form-label">Сортировать</label>
+    <select id="sort" name="sort" class="form-select">
+      <option value="date" {% if sort == "date" %}selected{% endif %}>
+        По сроку
+      </option>
+      <option value="title" {% if sort == "title" %}selected{% endif %}>
+        По названию
+      </option>
+      <option value="user" {% if sort == "user" %}selected{% endif %}>
+        По исполнителю
+      </option>
+      <option value="category" {% if sort == "category" %}selected{% endif %}>
+        По категории
+      </option>
+      <option value="priority" {% if sort == "priority" %}selected{% endif %}>
+        По приоритету
+      </option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <button type="submit" class="btn btn-success">Найти</button>
+    <a href="{% url 'chores:list' %}" class="btn btn-outline-secondary">
+      Сбросить
+    </a>
+  </div>
+</form>
+
+{% if error %}
+  <p class="text-danger">{{ error }}</p>
+{% endif %}
+
 {% for chore in chores %}
   {% include "chores/includes/chore_card.html" %}
 {% empty %}
   <p>Дела не найдены.</p>
 {% endfor %}
+
+{% include "includes/pagination.html" %}
 {% endblock %}

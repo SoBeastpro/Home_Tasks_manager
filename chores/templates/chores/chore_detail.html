@@ -16,16 +16,16 @@
         {{ chore.title|default:"Без названия" }}
       </h1>
       <p class="card-text">
-        <strong>Исполнитель:</strong> {{ chore.user_name }}
+        <strong>Исполнитель:</strong> {{ chore.user.name }}
       </p>
       <p class="card-text">
         <strong>Категория:</strong>
-        <a href="{% url 'categories:detail' chore.category_id %}">
-          {{ chore.category_name }}
+        <a href="{% url 'categories:detail' chore.category.id %}">
+          {{ chore.category.name }}
         </a>
       </p>
       <p class="card-text">
-        <strong>Срок:</strong> {{ chore.due_date }}
+        <strong>Срок:</strong> {{ chore.due_date|date:"Y-m-d" }}
       </p>
       <p class="card-text">
         <strong>Статус:</strong>

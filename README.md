@@ -12,9 +12,8 @@
 оценивать нагрузку участников.
 
 Консольная версия (ПР3) дополнена веб-интерфейсом на Django (ПР5),
-переведена на шаблоны Django (ПР6). На ПР7 веб-страницы читают
-данные из SQLite через `sqlite3`. JSON-хранилище сохранено
-для консоли и импорта.
+переведена на шаблоны Django (ПР6). На ПР7 данные были перенесены
+в SQLite. На ПР9 веб-страницы получают данные через Django ORM.
 
 ## Используемые технологии
 
@@ -23,8 +22,8 @@
 - Django Template Language (DTL);
 - HTML5, CSS3 и JavaScript;
 - Bootstrap 5.3 — базовая вёрстка;
-- SQLite и стандартная библиотека `sqlite3`;
-- JSON — исходные данные консоли и импорта в базу;
+- SQLite и Django ORM;
+- JSON и база ПР7 — исходные данные для переноса;
 - pytest — автоматизированные тесты;
 - flake8 — проверка качества кода.
 
@@ -158,24 +157,23 @@ Chore
 
 ## Страницы веб-интерфейса
 
-Данные страниц загружаются из `data/home_tasks.sqlite`.
-Представления выполняют SQL-запросы через `sqlite3`,
-получают строки `sqlite3.Row` и передают их в шаблоны
-через context.
+Данные страниц загружаются из `db.sqlite3` через Django ORM.
+Представления обращаются к моделям `User`, `Category` и `Chore`
+и передают объекты в шаблоны через context.
 
 - `/` — главная: описание приложения и навигация
   (view-функция `index()`);
-- `/chores/` — список дел, JOIN с пользователем и категорией
-  (view-функция `chore_list()`);
-- `/chores/open/` — невыполненные дела (`WHERE status != ?`);
-- `/chores/by-date/` — поиск дел по сроку (GET-форма, параметр `?`);
+- `/chores/` — список дел с поиском, фильтрами, сортировкой
+  и пагинацией (`chore_list()`);
+- `/chores/open/` — невыполненные дела (`exclude()`);
+- `/chores/by-date/` — поиск дел по сроку (GET-форма);
 - `/chores/<int:chore_id>/` — карточка дела
-  (view-функция `chore_detail()`);
-- `/categories/` — категории и число дел (`GROUP BY`);
+  (`get_object_or_404()`);
+- `/categories/` — категории и число дел (`annotate()`);
 - `/categories/<int:category_id>/` — категория и её дела
   (view-функция `category_detail()`);
-- `/categories/statistics/` — статистика: `COUNT`, `GROUP BY`,
-  `HAVING`.
+- `/categories/statistics/` — статистика: `Count`, `Avg`,
+  `annotate()`, группировка.
 
 Если дело или категория с указанным идентификатором не найдены,
 страница возвращает код статуса 404. Несуществующий адрес
@@ -188,7 +186,8 @@ Chore
 Ссылки формируются через `{% url %}` и пространства имён:
 `homepage:index`, `chores:list`, `chores:open`, `chores:by_date`,
 `chores:detail`, `categories:list`, `categories:detail`,
-`categories:statistics`.
+`categories:statistics`. Поиск и фильтры списка дел передаются
+GET-параметрами `q`, `date`, `category`, `user`, `sort`, `page`.
 
 ## Django Template Language
 
@@ -224,15 +223,16 @@ Bootstrap сохранён для базовой вёрстки.
 
 ## Основные операции
 
-### Используется в веб-интерфейсе (ПР5–ПР7)
+### Используется в веб-интерфейсе (ПР5–ПР9)
 
 - просмотр списка дел;
 - просмотр карточки дела (исполнитель, категория, срок, статус);
 - просмотр списка категорий;
 - просмотр категории и связанных с ней дел;
 - невыполненные дела и поиск дел по сроку;
+- поиск, фильтрация, сортировка и постраничный вывод дел;
 - статистика по категориям и статусам;
-- данные веб-страниц загружаются из SQLite.
+- данные веб-страниц загружаются через Django ORM.
 
 ### Отложено до следующих работ
 
@@ -260,7 +260,9 @@ Bootstrap сохранён для базовой вёрстки.
 ├── db/
 │   ├── __init__.py
 │   ├── database.py
-│   └── import_json.py
+│   ├── import_json.py
+│   ├── inspect_source_db.py
+│   └── import_sqlite_to_orm.py
 ├── sql/
 │   ├── schema.sql
 │   └── queries.sql
@@ -280,6 +282,9 @@ Bootstrap сохранён для базовой вёрстки.
 │   ├── templates/homepage/index.html
 │   ├── urls.py
 │   └── views.py
+├── users/
+│   ├── models.py
+│   └── migrations/
 ├── chores/
 │   ├── templates/chores/
 │   ├── urls.py
@@ -326,11 +331,13 @@ JSON-хранилище ПР1–ПР6 сохранено как предыдущ
 
 ### `db/`
 
-Подключение к SQLite и перенос данных из JSON:
+Слой ПР7 сохранён как предыдущая реализация:
 
 - `database.py` — `get_connection()`, `PRAGMA foreign_keys = ON`,
   `sqlite3.Row`;
-- `import_json.py` — импорт `users`, `categories`, `chores`.
+- `import_json.py` — импорт JSON в `data/home_tasks.sqlite`;
+- `inspect_source_db.py` — просмотр исходной базы ПР7;
+- `import_sqlite_to_orm.py` — перенос записей в таблицы Django.
 
 ### `sql/`
 
@@ -361,17 +368,25 @@ Django-приложение главной страницы:
 - `templates/homepage/index.html` — главная страница;
 - `static/homepage/` — CSS, JavaScript и логотип.
 
+### `users/`
+
+Django-приложение пользователей предметной области:
+
+- `models.py` — модель `User` (`name`, `email`).
+
 ### `chores/`
 
 Django-приложение дел:
 
-- `views.py` — список, карточка, невыполненные дела и поиск по сроку;
+- `models.py` — модель `Chore` и связи `ForeignKey`;
+- `views.py` — список, карточка, поиск, фильтры и пагинация;
 - `templates/chores/` — список, карточка и включаемые фрагменты.
 
 ### `categories/`
 
 Django-приложение категорий:
 
+- `models.py` — модель `Category`;
 - `views.py` — список, карточка и статистика;
 - `templates/categories/` — список, карточка и include.
 
@@ -381,64 +396,53 @@ Django-приложение категорий:
 
 ## Хранение данных
 
-Веб-интерфейс читает данные из `data/home_tasks.sqlite`.
-Таблицы создаются скриптом `sql/schema.sql`. Данные переносятся
-из JSON скриптом `db/import_json.py`. JSON-файлы остаются
-источником для импорта и консоли.
+Веб-интерфейс читает данные из `db.sqlite3` через Django ORM.
+Файл `data/home_tasks.sqlite` — исходная база ПР7, она не меняется.
+JSON-файлы остаются источником для консоли и импорта в базу ПР7.
 
-Таблица `users`:
-
-| Поле | Тип | Назначение |
-|---|---|---|
-| `id` | INTEGER | идентификатор, PRIMARY KEY |
-| `name` | TEXT | имя пользователя |
-| `email` | TEXT | электронная почта |
-
-Таблица `categories`:
+Модель `User`:
 
 | Поле | Тип | Назначение |
 |---|---|---|
-| `id` | INTEGER | идентификатор, PRIMARY KEY |
-| `name` | TEXT | название категории |
+| `id` | AutoField | первичный ключ Django |
+| `name` | CharField | имя пользователя |
+| `email` | EmailField | электронная почта |
 
-Таблица `chores`:
+Модель `Category`:
 
 | Поле | Тип | Назначение |
 |---|---|---|
-| `id` | INTEGER | идентификатор, PRIMARY KEY |
-| `title` | TEXT | название дела |
-| `user_id` | INTEGER | FOREIGN KEY → `users.id` |
-| `category_id` | INTEGER | FOREIGN KEY → `categories.id` |
-| `priority` | INTEGER | приоритет |
-| `due_date` | TEXT | срок в формате `ГГГГ-ММ-ДД` |
-| `status` | TEXT | статус выполнения |
+| `id` | AutoField | первичный ключ Django |
+| `name` | CharField | название категории |
 
-Создать базу и перенести данные:
+Модель `Chore`:
+
+| Поле | Тип | Назначение |
+|---|---|---|
+| `id` | AutoField | первичный ключ Django |
+| `title` | CharField | название дела |
+| `user` | ForeignKey | исполнитель, `on_delete=PROTECT`, `related_name="chores"` |
+| `category` | ForeignKey | категория, `on_delete=PROTECT`, `related_name="chores"` |
+| `priority` | PositiveIntegerField | приоритет |
+| `due_date` | DateField | срок выполнения |
+| `status` | CharField | статус выполнения |
+
+Таблицы Django создаются миграциями. Исходные данные ПР7
+переносятся скриптом:
 
 ```
-python -c "import sqlite3; sqlite3.connect('data/home_tasks.sqlite').close()"
-python -c "import sqlite3; conn=sqlite3.connect('data/home_tasks.sqlite'); conn.executescript(open('sql/schema.sql', encoding='utf-8').read()); conn.close()"
-python -m db.import_json
+python manage.py migrate
+python db/inspect_source_db.py
+python db/import_sqlite_to_orm.py
 ```
 
-Проверенные запросы лежат в `sql/queries.sql`:
+Файл `db.sqlite3` в репозиторий не входит: после клонирования
+нужно применить миграции и выполнить перенос.
 
-1. список всех дел;
-2. список категорий;
-3. дела с высоким приоритетом (`WHERE`);
-4. невыполненные дела (`WHERE`);
-5. дела на выбранную дату (`WHERE`);
-6. дело вместе с исполнителем и категорией (`JOIN`);
-7. невыполненные дела со связанными объектами (`JOIN`);
-8. общее количество дел (`COUNT`);
-9. количество невыполненных дел (`COUNT`);
-10. количество дел в каждой категории (`GROUP BY`);
-11. количество дел у каждого исполнителя (`GROUP BY`);
-12. количество дел по статусам (`GROUP BY`);
-13. категории, в которых больше одного дела (`HAVING`);
-14. ближайшие дела (`LIMIT`, `OFFSET`).
+SQL-слой ПР7 (`sql/schema.sql`, `sql/queries.sql`,
+`db/database.py`) сохранён, представления его больше не используют.
 
-Страницы, которые показывают данные SQLite:
+Страницы, которые показывают данные ORM:
 
 - `/chores/` — список дел;
 - `/chores/open/` — невыполненные дела;
@@ -537,8 +541,8 @@ flake8 . --extend-exclude=venv
 
 ## Git
 
-Исходный код хранится в Git-репозитории. Коммиты ПР7 начинаются
-с метки `ПР7:`.
+Исходный код хранится в Git-репозитории. Коммиты ПР9 начинаются
+с метки `ПР9:`.
 
 ```
 git status
@@ -546,22 +550,22 @@ git status
 
 ## Текущее состояние и план развития
 
-Реализовано (ПР7):
+Реализовано (ПР9):
 
-- база SQLite `data/home_tasks.sqlite`;
-- таблицы `users`, `categories`, `chores` с первичными и внешними
-  ключами (`sql/schema.sql`);
-- перенос данных из JSON скриптом `db/import_json.py`;
-- SQL-запросы в `sql/queries.sql` (SELECT, WHERE, JOIN, COUNT,
-  GROUP BY, HAVING);
-- Django-представления получают данные через `sqlite3` и
-  `sqlite3.Row`;
-- страницы списка дел, невыполненных дел, поиска по сроку,
-  категорий и статистики работают с базой.
+- модели Django `User`, `Category`, `Chore`;
+- связи `ForeignKey` с `on_delete=PROTECT` и `related_name`;
+- миграции и база `db.sqlite3`;
+- перенос данных из `data/home_tasks.sqlite` скриптом
+  `db/import_sqlite_to_orm.py`;
+- представления получают данные через ORM (`filter`, `exclude`,
+  `select_related`, `annotate`, `aggregate`, `Paginator`);
+- поиск, фильтрация, сортировка и пагинация списка дел;
+- страницы списка, карточек, поиска по сроку и статистики
+  работают с моделями Django.
 
 Планируется:
 
-- подключение базы через Django ORM;
+- административная панель Django;
 - формы создания и редактирования дел;
 - использование отложенной логики ПР3 (поиск, смена статуса);
 - регистрация пользователей;
@@ -570,5 +574,9 @@ git status
 
 Функции `get_chore_status()`, `get_days_left()`,
 `get_deadline_message()` и `get_priority_label()` сохранены
-в модуле `models/chores.py` и используются вместе с методами объекта
-`Chore` при выводе карточки дела.
+в модуле `models/chores.py` для консоли. Карточка дела в вебе
+использует методы модели Django `Chore`.
+
+## Автор
+
+Хворостянко В.Е., группа ЭФБО-03-24.

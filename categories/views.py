@@ -1,29 +1,18 @@
-"""Представления категорий: данные загружаются из SQLite."""
+"""Представления категорий: данные загружаются через Django ORM."""
 
+from django.db.models import Avg, Count, Max, Min, Q
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 
-from db.database import get_connection
-from chores.views import CHORES_LIST_SQL
+from categories.models import Category
+from chores.models import STATUS_DONE, Chore
 
 
 def category_list(request: HttpRequest) -> HttpResponse:
-    """Показать список категорий из SQLite."""
-    conn = get_connection()
-    categories = conn.execute(
-        """
-        SELECT
-            categories.id,
-            categories.name,
-            COUNT(chores.id) AS chore_count
-        FROM categories
-        LEFT JOIN chores
-            ON categories.id = chores.category_id
-        GROUP BY categories.id, categories.name
-        ORDER BY categories.name;
-        """
-    ).fetchall()
-    conn.close()
+    """Показать список категорий и число дел в каждой."""
+    categories = Category.objects.annotate(
+        chore_count=Count("chores"),
+    ).order_by("name")
     return render(
         request,
         "categories/category_list.html",
@@ -36,23 +25,12 @@ def category_detail(
     category_id: int,
 ) -> HttpResponse:
     """Показать категорию и её дела или страницу 404."""
-    conn = get_connection()
-    category = conn.execute(
-        """
-        SELECT id, name
-        FROM categories
-        WHERE id = ?;
-        """,
-        (category_id,),
-    ).fetchone()
-    chores = []
-    if category is not None:
-        chores = conn.execute(
-            CHORES_LIST_SQL + "WHERE chores.category_id = ? "
-            + "ORDER BY chores.due_date;",
-            (category_id,),
-        ).fetchall()
-    conn.close()
+    category = get_object_or_404(Category, pk=category_id)
+    chores = (
+        Chore.objects.select_related("user", "category")
+        .filter(category=category)
+        .order_by("due_date", "pk")
+    )
     return render(
         request,
         "categories/category_detail.html",
@@ -60,65 +38,51 @@ def category_detail(
             "category": category,
             "chores": chores,
         },
-        status=404 if category is None else 200,
     )
 
 
 def statistics(request: HttpRequest) -> HttpResponse:
     """Показать статистику дел по категориям и статусам."""
-    conn = get_connection()
-    by_category = conn.execute(
-        """
-        SELECT
-            categories.name AS category_name,
-            COUNT(chores.id) AS chores_count
-        FROM categories
-        LEFT JOIN chores
-            ON categories.id = chores.category_id
-        GROUP BY categories.id, categories.name
-        ORDER BY chores_count DESC;
-        """
-    ).fetchall()
-    by_status = conn.execute(
-        """
-        SELECT
-            status,
-            COUNT(*) AS chores_count
-        FROM chores
-        GROUP BY status
-        ORDER BY chores_count DESC;
-        """
-    ).fetchall()
-    busy_categories = conn.execute(
-        """
-        SELECT
-            categories.name AS category_name,
-            COUNT(chores.id) AS chores_count
-        FROM categories
-        JOIN chores
-            ON categories.id = chores.category_id
-        GROUP BY categories.id, categories.name
-        HAVING COUNT(chores.id) > 1
-        ORDER BY chores_count DESC;
-        """
-    ).fetchall()
-    totals = conn.execute(
-        """
-        SELECT
-            COUNT(*) AS chores_count
-        FROM chores
-        WHERE status != ?;
-        """,
-        ("Выполнено",),
-    ).fetchone()
-    conn.close()
+    by_category = (
+        Category.objects.annotate(
+            chores_count=Count("chores"),
+        )
+        .values("name", "chores_count")
+        .order_by("-chores_count")
+    )
+    by_status = (
+        Chore.objects.values("status")
+        .annotate(chores_count=Count("id"))
+        .order_by("-chores_count")
+    )
+    busy_categories = by_category.filter(chores_count__gt=1)
+    summary = Chore.objects.aggregate(
+        chores_count=Count("id"),
+        open_count=Count("id", filter=~Q(status=STATUS_DONE)),
+        avg_priority=Avg("priority"),
+        min_priority=Min("priority"),
+        max_priority=Max("priority"),
+    )
     return render(
         request,
         "categories/statistics.html",
         {
-            "by_category": by_category,
+            "by_category": [
+                {
+                    "category_name": item["name"],
+                    "chores_count": item["chores_count"],
+                }
+                for item in by_category
+            ],
             "by_status": by_status,
-            "busy_categories": busy_categories,
-            "open_count": totals["chores_count"],
+            "busy_categories": [
+                {
+                    "category_name": item["name"],
+                    "chores_count": item["chores_count"],
+                }
+                for item in busy_categories
+            ],
+            "open_count": summary["open_count"],
+            "summary": summary,
         },
     )

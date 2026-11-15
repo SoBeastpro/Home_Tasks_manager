@@ -9,6 +9,13 @@
 <p class="lead">
   Невыполненных дел: {{ open_count }}
 </p>
+<p>
+  Всего дел: {{ summary.chores_count }}.
+  Приоритет: средний
+  {{ summary.avg_priority|floatformat:1 }},
+  минимум {{ summary.min_priority }},
+  максимум {{ summary.max_priority }}.
+</p>
 
 <h2 class="h4 mt-4">По категориям</h2>
 {% for item in by_category %}

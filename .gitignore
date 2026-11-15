@@ -13,6 +13,7 @@ __pycache__/
 # Служебные файлы Django
 db.sqlite3
 *.sqlite3
+*_backup.sqlite
 /staticfiles/
 /media/
 

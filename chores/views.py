@@ -1,58 +1,95 @@
-"""Представления дел: данные загружаются из SQLite."""
+"""Представления дел: данные загружаются через Django ORM."""
 
-from datetime import date
+from datetime import datetime
 
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 
-from db.database import get_connection
-from models.chores import get_deadline_message
-from utils import parse_date
+from categories.models import Category
+from chores.models import STATUS_DONE, Chore
+from users.models import User
 
 
-CHORES_LIST_SQL = """
-SELECT
-    chores.id,
-    chores.category_id,
-    chores.title,
-    chores.due_date,
-    chores.status,
-    chores.priority,
-    CASE chores.priority
-        WHEN 1 THEN 'Низкий'
-        WHEN 2 THEN 'Обычный'
-        WHEN 3 THEN 'Высокий'
-    END AS priority_label,
-    users.name AS user_name,
-    categories.name AS category_name
-FROM chores
-JOIN users
-    ON chores.user_id = users.id
-JOIN categories
-    ON chores.category_id = categories.id
-"""
+SORT_FIELDS = {
+    "date": "due_date",
+    "title": "title",
+    "user": "user__name",
+    "category": "category__name",
+    "priority": "-priority",
+}
+PAGE_SIZE = 5
+
+
+def _parse_date(value: str):
+    """Преобразовать строку YYYY-MM-DD в дату или вернуть None."""
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _chore_queryset():
+    """Вернуть дела вместе с исполнителем и категорией."""
+    return Chore.objects.select_related("user", "category")
 
 
 def chore_list(request: HttpRequest) -> HttpResponse:
-    """Показать список дел из SQLite."""
-    conn = get_connection()
-    chores = conn.execute(
-        CHORES_LIST_SQL + "ORDER BY chores.due_date;",
-    ).fetchall()
-    conn.close()
-    return render(request, "chores/chore_list.html", {"chores": chores})
+    """Показать список дел с поиском, фильтрами и пагинацией."""
+    query = request.GET.get("q", "").strip()
+    due_date = request.GET.get("date", "").strip()
+    category_id = request.GET.get("category", "").strip()
+    user_id = request.GET.get("user", "").strip()
+    sort = request.GET.get("sort", "date").strip()
+    error = None
+
+    chores = _chore_queryset()
+    if query:
+        chores = chores.filter(
+            Q(title__icontains=query) | Q(user__name__icontains=query),
+        )
+    if due_date:
+        selected_date = _parse_date(due_date)
+        if selected_date is None:
+            error = "Укажите корректную дату."
+        else:
+            chores = chores.filter(due_date=selected_date)
+    if category_id.isdigit():
+        chores = chores.filter(category_id=int(category_id))
+    if user_id.isdigit():
+        chores = chores.filter(user_id=int(user_id))
+
+    sort_field = SORT_FIELDS.get(sort, "due_date")
+    chores = chores.order_by(sort_field, "pk")
+    page_obj = Paginator(chores, PAGE_SIZE).get_page(
+        request.GET.get("page"),
+    )
+    return render(
+        request,
+        "chores/chore_list.html",
+        {
+            "chores": page_obj,
+            "page_obj": page_obj,
+            "query": query,
+            "due_date": due_date,
+            "selected_category": category_id,
+            "selected_user": user_id,
+            "sort": sort,
+            "categories": Category.objects.order_by("name"),
+            "users": User.objects.order_by("name"),
+            "error": error,
+        },
+    )
 
 
 def open_chores(request: HttpRequest) -> HttpResponse:
     """Показать невыполненные дела."""
-    conn = get_connection()
-    chores = conn.execute(
-        CHORES_LIST_SQL
-        + "WHERE chores.status != ? "
-        + "ORDER BY chores.due_date;",
-        ("Выполнено",),
-    ).fetchall()
-    conn.close()
+    chores = (
+        _chore_queryset()
+        .exclude(status=STATUS_DONE)
+        .order_by("due_date", "pk")
+    )
     return render(
         request,
         "chores/open_list.html",
@@ -62,46 +99,41 @@ def open_chores(request: HttpRequest) -> HttpResponse:
 
 def chores_by_date(request: HttpRequest) -> HttpResponse:
     """Найти дела на выбранную дату."""
-    due_date = request.GET.get("date")
+    due_date = request.GET.get("date", "").strip()
     chores = []
+    error = None
     if due_date:
-        conn = get_connection()
-        chores = conn.execute(
-            CHORES_LIST_SQL
-            + "WHERE chores.due_date = ? "
-            + "ORDER BY chores.priority DESC;",
-            (due_date,),
-        ).fetchall()
-        conn.close()
+        selected_date = _parse_date(due_date)
+        if selected_date is None:
+            error = "Укажите корректную дату."
+        else:
+            chores = (
+                _chore_queryset()
+                .filter(due_date=selected_date)
+                .order_by("-priority", "pk")
+            )
     return render(
         request,
         "chores/by_date.html",
         {
             "chores": chores,
             "due_date": due_date,
+            "error": error,
         },
     )
 
 
 def chore_detail(request: HttpRequest, chore_id: int) -> HttpResponse:
     """Показать карточку дела или страницу 404."""
-    conn = get_connection()
-    chore = conn.execute(
-        CHORES_LIST_SQL + "WHERE chores.id = ?;",
-        (chore_id,),
-    ).fetchone()
-    conn.close()
-    hint = ""
-    if chore is not None:
-        is_done = chore["status"] == "Выполнено"
-        days_left = (parse_date(chore["due_date"]) - date.today()).days
-        hint = get_deadline_message(days_left, is_done)
+    chore = get_object_or_404(
+        _chore_queryset(),
+        pk=chore_id,
+    )
     return render(
         request,
         "chores/chore_detail.html",
         {
             "chore": chore,
-            "deadline_hint": hint,
+            "deadline_hint": chore.deadline_message(),
         },
-        status=404 if chore is None else 200,
     )

@@ -4,13 +4,13 @@
       {{ chore.title|default:"Без названия" }}
     </h2>
     <p class="card-text">
-      Исполнитель: {{ chore.user_name }}
+      Исполнитель: {{ chore.user.name }}
     </p>
     <p class="card-text">
-      Категория: {{ chore.category_name }}
+      Категория: {{ chore.category.name }}
     </p>
     <p class="card-text">
-      Срок: {{ chore.due_date }}
+      Срок: {{ chore.due_date|date:"Y-m-d" }}
     </p>
     <p class="card-text">
       {% include "chores/includes/chore_status.html" %}

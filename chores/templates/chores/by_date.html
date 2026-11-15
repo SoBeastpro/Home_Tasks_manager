@@ -21,7 +21,10 @@
     <button type="submit" class="btn btn-success">Найти</button>
   </div>
 </form>
-{% if due_date %}
+{% if error %}
+  <p class="text-danger">{{ error }}</p>
+{% endif %}
+{% if due_date and not error %}
   <h2>Дата: {{ due_date }}</h2>
   {% for chore in chores %}
     {% include "chores/includes/chore_card.html" %}
