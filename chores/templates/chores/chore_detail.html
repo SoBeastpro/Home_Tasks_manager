@@ -20,7 +20,7 @@
       </p>
       <p class="card-text">
         <strong>Категория:</strong>
-        <a href="{% url 'categories:detail' chore.category.id %}">
+        <a href="{{ chore.category.get_absolute_url }}">
           {{ chore.category.name }}
         </a>
       </p>

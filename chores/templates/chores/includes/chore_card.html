@@ -16,7 +16,7 @@
       {% include "chores/includes/chore_status.html" %}
     </p>
     <a
-      href="{% url 'chores:detail' chore.id %}"
+      href="{{ chore.get_absolute_url }}"
       class="btn btn-success"
     >
       Подробнее

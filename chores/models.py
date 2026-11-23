@@ -3,6 +3,8 @@
 from datetime import date
 
 from django.db import models
+from django.db.models import Case, Value, When
+from django.urls import reverse
 
 from categories.models import Category
 from users.models import User
@@ -14,14 +16,36 @@ PRIORITY_LABELS = {
     3: "Высокий",
 }
 
-STATUS_PLANNED = "Запланировано"
-STATUS_IN_PROGRESS = "В работе"
-STATUS_DONE = "Выполнено"
-STATUS_CHOICES = [
-    (STATUS_PLANNED, STATUS_PLANNED),
-    (STATUS_IN_PROGRESS, STATUS_IN_PROGRESS),
-    (STATUS_DONE, STATUS_DONE),
-]
+
+class Status(models.TextChoices):
+    """Статусы выполнения домашнего дела."""
+
+    PLANNED = "Запланировано", "Запланировано"
+    IN_PROGRESS = "В работе", "В работе"
+    DONE = "Выполнено", "Выполнено"
+
+
+STATUS_DONE = Status.DONE
+
+
+class ChoreQuerySet(models.QuerySet):
+    """Повторно используемые выборки дел."""
+
+    def open(self):
+        """Вернуть невыполненные дела."""
+        return self.exclude(status=Status.DONE)
+
+    def done(self):
+        """Вернуть выполненные дела."""
+        return self.filter(status=Status.DONE)
+
+    def for_date(self, due_date):
+        """Вернуть дела с указанным сроком."""
+        return self.filter(due_date=due_date)
+
+    def high_priority(self):
+        """Вернуть дела с высоким приоритетом."""
+        return self.filter(priority__gte=3)
 
 
 class Chore(models.Model):
@@ -52,10 +76,22 @@ class Chore(models.Model):
     )
     status = models.CharField(
         max_length=32,
-        choices=STATUS_CHOICES,
-        default=STATUS_PLANNED,
+        choices=Status.choices,
+        default=Status.PLANNED,
         verbose_name="Статус",
     )
+    is_high_priority = models.GeneratedField(
+        expression=Case(
+            When(priority__gte=3, then=Value(True)),
+            default=Value(False),
+            output_field=models.BooleanField(),
+        ),
+        output_field=models.BooleanField(),
+        db_persist=True,
+        verbose_name="Высокий приоритет",
+    )
+
+    objects = ChoreQuerySet.as_manager()
 
     @property
     def priority_label(self) -> str:
@@ -65,7 +101,7 @@ class Chore(models.Model):
     @property
     def is_done(self) -> bool:
         """Проверить, выполнено ли дело."""
-        return self.status == STATUS_DONE
+        return self.status == Status.DONE
 
     def days_left(self) -> int:
         """Вернуть число дней до срока выполнения."""
@@ -86,8 +122,12 @@ class Chore(models.Model):
 
     def complete(self) -> None:
         """Отметить дело выполненным и сохранить статус."""
-        self.status = STATUS_DONE
+        self.status = Status.DONE
         self.save(update_fields=["status"])
+
+    def get_absolute_url(self) -> str:
+        """Вернуть адрес карточки дела."""
+        return reverse("chores:detail", kwargs={"chore_id": self.pk})
 
     def __str__(self) -> str:
         """Вернуть название дела и срок."""

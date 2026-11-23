@@ -7,7 +7,7 @@
       Дел: {{ chore_count }}
     </p>
     <a
-      href="{% url 'categories:detail' category.id %}"
+      href="{{ category.get_absolute_url }}"
       class="btn btn-outline-success"
     >
       Подробнее

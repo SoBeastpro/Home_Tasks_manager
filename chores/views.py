@@ -8,7 +8,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from categories.models import Category
-from chores.models import STATUS_DONE, Chore
+from chores.models import Chore
 from users.models import User
 
 
@@ -85,11 +85,7 @@ def chore_list(request: HttpRequest) -> HttpResponse:
 
 def open_chores(request: HttpRequest) -> HttpResponse:
     """Показать невыполненные дела."""
-    chores = (
-        _chore_queryset()
-        .exclude(status=STATUS_DONE)
-        .order_by("due_date", "pk")
-    )
+    chores = _chore_queryset().open().order_by("due_date", "pk")
     return render(
         request,
         "chores/open_list.html",
@@ -109,7 +105,7 @@ def chores_by_date(request: HttpRequest) -> HttpResponse:
         else:
             chores = (
                 _chore_queryset()
-                .filter(due_date=selected_date)
+                .for_date(selected_date)
                 .order_by("-priority", "pk")
             )
     return render(

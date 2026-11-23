@@ -5,7 +5,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from categories.models import Category
-from chores.models import STATUS_DONE, Chore
+from chores.models import Chore, Status
 
 
 def category_list(request: HttpRequest) -> HttpResponse:
@@ -22,10 +22,10 @@ def category_list(request: HttpRequest) -> HttpResponse:
 
 def category_detail(
     request: HttpRequest,
-    category_id: int,
+    slug: str,
 ) -> HttpResponse:
     """Показать категорию и её дела или страницу 404."""
-    category = get_object_or_404(Category, pk=category_id)
+    category = get_object_or_404(Category, slug=slug)
     chores = (
         Chore.objects.select_related("user", "category")
         .filter(category=category)
@@ -58,7 +58,7 @@ def statistics(request: HttpRequest) -> HttpResponse:
     busy_categories = by_category.filter(chores_count__gt=1)
     summary = Chore.objects.aggregate(
         chores_count=Count("id"),
-        open_count=Count("id", filter=~Q(status=STATUS_DONE)),
+        open_count=Count("id", filter=~Q(status=Status.DONE)),
         avg_priority=Avg("priority"),
         min_priority=Min("priority"),
         max_priority=Max("priority"),
