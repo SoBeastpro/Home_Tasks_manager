@@ -47,6 +47,13 @@ class ChoreQuerySet(models.QuerySet):
         """Вернуть дела с высоким приоритетом."""
         return self.filter(priority__gte=3)
 
+    def occupying(self, category, due_date):
+        """Вернуть невыполненные дела категории на дату."""
+        return self.open().filter(
+            category=category,
+            due_date=due_date,
+        )
+
 
 class Chore(models.Model):
     """Домашнее дело, закреплённое за пользователем и категорией."""

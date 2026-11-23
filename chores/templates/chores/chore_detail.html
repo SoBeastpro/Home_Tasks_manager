@@ -37,6 +37,24 @@
       <p class="card-text">
         <strong>Подсказка:</strong> {{ deadline_hint }}
       </p>
+      {% if not chore.is_done %}
+        <a
+          href="{% url 'chores:update' chore.pk %}"
+          class="btn btn-success me-2"
+        >
+          Изменить
+        </a>
+        <form
+          method="post"
+          action="{% url 'chores:complete' chore.pk %}"
+          class="d-inline"
+        >
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-secondary">
+            Отметить выполненным
+          </button>
+        </form>
+      {% endif %}
     </div>
   </div>
 {% else %}

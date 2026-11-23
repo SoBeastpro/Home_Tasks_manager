@@ -1,4 +1,11 @@
 <article class="card category-card mb-3">
+  {% if category.image %}
+    <img
+      src="{{ category.image.url }}"
+      alt="{{ category.name }}"
+      class="card-img-top category-image"
+    >
+  {% endif %}
   <div class="card-body">
     <h2 class="card-title h5">
       {{ category.name|default:"Без названия" }}
@@ -8,9 +15,15 @@
     </p>
     <a
       href="{{ category.get_absolute_url }}"
-      class="btn btn-outline-success"
+      class="btn btn-outline-success me-2"
     >
       Подробнее
+    </a>
+    <a
+      href="{% url 'categories:update' category.slug %}"
+      class="btn btn-outline-secondary"
+    >
+      Изменить
     </a>
   </div>
 </article>

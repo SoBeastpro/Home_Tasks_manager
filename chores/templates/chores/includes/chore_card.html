@@ -17,9 +17,27 @@
     </p>
     <a
       href="{{ chore.get_absolute_url }}"
-      class="btn btn-success"
+      class="btn btn-success me-2"
     >
       Подробнее
     </a>
+    {% if not chore.is_done %}
+      <a
+        href="{% url 'chores:update' chore.pk %}"
+        class="btn btn-outline-success me-2"
+      >
+        Изменить
+      </a>
+      <form
+        method="post"
+        action="{% url 'chores:complete' chore.pk %}"
+        class="d-inline"
+      >
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-secondary">
+          Выполнено
+        </button>
+      </form>
+    {% endif %}
   </div>
 </article>

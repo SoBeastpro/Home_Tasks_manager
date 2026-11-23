@@ -25,6 +25,12 @@ class Category(models.Model):
         editable=False,
         verbose_name="URL-идентификатор",
     )
+    image = models.ImageField(
+        upload_to="categories/",
+        blank=True,
+        null=True,
+        verbose_name="Изображение",
+    )
 
     def save(self, *args, **kwargs) -> None:
         """Сохранить категорию и при необходимости заполнить slug."""

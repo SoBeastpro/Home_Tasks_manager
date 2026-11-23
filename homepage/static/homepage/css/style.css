@@ -29,6 +29,11 @@ body {
   letter-spacing: 0.02em;
 }
 
+.category-image {
+  max-height: 240px;
+  object-fit: cover;
+}
+
 footer p {
   color: #6c757d;
 }

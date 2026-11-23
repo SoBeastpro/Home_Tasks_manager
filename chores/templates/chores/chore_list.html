@@ -10,6 +10,9 @@
   Всего дел: {{ page_obj.paginator.count }}
 </p>
 <p>
+  <a href="{% url 'chores:create' %}" class="btn btn-success me-2">
+    Добавить дело
+  </a>
   <a href="{% url 'chores:open' %}" class="btn btn-outline-success me-2">
     Невыполненные дела
   </a>
@@ -20,77 +23,49 @@
 
 <form method="get" class="row gy-2 gx-2 align-items-end mb-4">
   <div class="col-md-3">
-    <label for="q" class="form-label">Поиск</label>
-    <input
-      class="form-control"
-      type="search"
-      id="q"
-      name="q"
-      value="{{ query }}"
-      placeholder="Название или исполнитель"
-    >
+    <label class="form-label" for="{{ form.q.id_for_label }}">
+      {{ form.q.label }}
+    </label>
+    {{ form.q }}
+    {% for error in form.q.errors %}
+      <div class="form-error text-danger">{{ error }}</div>
+    {% endfor %}
   </div>
   <div class="col-md-2">
-    <label for="date" class="form-label">Срок</label>
-    <input
-      class="form-control"
-      type="date"
-      id="date"
-      name="date"
-      value="{{ due_date }}"
-    >
+    <label class="form-label" for="{{ form.date.id_for_label }}">
+      {{ form.date.label }}
+    </label>
+    {{ form.date }}
+    {% for error in form.date.errors %}
+      <div class="form-error text-danger">{{ error }}</div>
+    {% endfor %}
   </div>
   <div class="col-md-2">
-    <label for="category" class="form-label">Категория</label>
-    <select id="category" name="category" class="form-select">
-      <option value="">Все категории</option>
-      {% for category in categories %}
-        <option
-          value="{{ category.pk }}"
-          {% if selected_category == category.pk|stringformat:"s" %}
-            selected
-          {% endif %}
-        >
-          {{ category.name }}
-        </option>
-      {% endfor %}
-    </select>
+    <label class="form-label" for="{{ form.category.id_for_label }}">
+      {{ form.category.label }}
+    </label>
+    {{ form.category }}
+    {% for error in form.category.errors %}
+      <div class="form-error text-danger">{{ error }}</div>
+    {% endfor %}
   </div>
   <div class="col-md-2">
-    <label for="user" class="form-label">Исполнитель</label>
-    <select id="user" name="user" class="form-select">
-      <option value="">Все исполнители</option>
-      {% for user in users %}
-        <option
-          value="{{ user.pk }}"
-          {% if selected_user == user.pk|stringformat:"s" %}
-            selected
-          {% endif %}
-        >
-          {{ user.name }}
-        </option>
-      {% endfor %}
-    </select>
+    <label class="form-label" for="{{ form.user.id_for_label }}">
+      {{ form.user.label }}
+    </label>
+    {{ form.user }}
+    {% for error in form.user.errors %}
+      <div class="form-error text-danger">{{ error }}</div>
+    {% endfor %}
   </div>
   <div class="col-md-2">
-    <label for="sort" class="form-label">Сортировать</label>
-    <select id="sort" name="sort" class="form-select">
-      <option value="date" {% if sort == "date" %}selected{% endif %}>
-        По сроку
-      </option>
-      <option value="title" {% if sort == "title" %}selected{% endif %}>
-        По названию
-      </option>
-      <option value="user" {% if sort == "user" %}selected{% endif %}>
-        По исполнителю
-      </option>
-      <option value="category" {% if sort == "category" %}selected{% endif %}>
-        По категории
-      </option>
-      <option value="priority" {% if sort == "priority" %}selected{% endif %}>
-        По приоритету
-      </option>
-    </select>
+    <label class="form-label" for="{{ form.sort.id_for_label }}">
+      {{ form.sort.label }}
+    </label>
+    {{ form.sort }}
+    {% for error in form.sort.errors %}
+      <div class="form-error text-danger">{{ error }}</div>
+    {% endfor %}
   </div>
   <div class="col-md-3">
     <button type="submit" class="btn btn-success">Найти</button>

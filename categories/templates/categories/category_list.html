@@ -9,6 +9,11 @@
 <p>
   Всего категорий: {{ categories|length }}
 </p>
+<p>
+  <a href="{% url 'categories:create' %}" class="btn btn-success">
+    Добавить категорию
+  </a>
+</p>
 {% for category in categories %}
   {% include "categories/includes/category_card.html" with category=category chore_count=category.chore_count %}
 {% empty %}

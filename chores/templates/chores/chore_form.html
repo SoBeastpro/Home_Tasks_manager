@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ title }} – Home Tasks
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "includes/form_fields.html" %}
+  <button type="submit" class="btn btn-success">Сохранить</button>
+  <a href="{% url 'chores:list' %}" class="btn btn-outline-secondary">
+    Отмена
+  </a>
+</form>
+{% endblock %}

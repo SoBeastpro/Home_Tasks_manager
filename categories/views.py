@@ -2,8 +2,9 @@
 
 from django.db.models import Avg, Count, Max, Min, Q
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
+from categories.forms import CategoryForm
 from categories.models import Category
 from chores.models import Chore, Status
 
@@ -17,6 +18,50 @@ def category_list(request: HttpRequest) -> HttpResponse:
         request,
         "categories/category_list.html",
         {"categories": categories},
+    )
+
+
+def category_create(request: HttpRequest) -> HttpResponse:
+    """Создать категорию и при необходимости сохранить изображение."""
+    if request.method == "POST":
+        form = CategoryForm(request.POST, request.FILES)
+        if form.is_valid():
+            category = form.save()
+            return redirect(category)
+    else:
+        form = CategoryForm()
+    return render(
+        request,
+        "categories/category_form.html",
+        {
+            "form": form,
+            "title": "Новая категория",
+        },
+    )
+
+
+def category_update(request: HttpRequest, slug: str) -> HttpResponse:
+    """Изменить категорию и загрузить изображение."""
+    category = get_object_or_404(Category, slug=slug)
+    if request.method == "POST":
+        form = CategoryForm(
+            request.POST,
+            request.FILES,
+            instance=category,
+        )
+        if form.is_valid():
+            category = form.save()
+            return redirect(category)
+    else:
+        form = CategoryForm(instance=category)
+    return render(
+        request,
+        "categories/category_form.html",
+        {
+            "form": form,
+            "category": category,
+            "title": "Изменить категорию",
+        },
     )
 
 

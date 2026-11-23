@@ -12,7 +12,7 @@ from .models import Category
 class CategoryAdmin(admin.ModelAdmin):
     """Список, поиск и связанные дела категории."""
 
-    list_display = ("id", "name", "slug", "site_link")
+    list_display = ("id", "name", "slug", "image", "site_link")
     list_display_links = ("name",)
     search_fields = ("name", "slug")
     ordering = ("name",)
